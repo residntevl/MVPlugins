@@ -62,10 +62,6 @@
 */
 //=============================================================================
 
-// Persist on same transfer works
-// persist on transfer works
-// persist on command works
-// persist on load DOES NOT WORK
 var Resi = Resi || {};
 Resi.Params = Resi.Params || {};
 Resi.Parameters = PluginManager.parameters('resiPersistentEncounters');
