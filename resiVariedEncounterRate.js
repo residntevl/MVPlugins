@@ -245,7 +245,6 @@ States or Equipments to modify how many steps until an encounter should occur.
 */
 //=============================================================================
 
-// I should be aliasing the functions but it calls the functions itself so any re-write is doubled.
 var Resi = Resi || {};
 Resi.Params = Resi.Params || {};
 Resi.Parameters = PluginManager.parameters('resiVariedEncounterRate');
@@ -287,7 +286,6 @@ Game_Player.prototype.updateNonmoving = function (wasMoving) {
         } else {
             $gameTemp.clearDestination();
         }
-    // Call old function to do the rest of the code
     }
 };
 
