@@ -1,6 +1,6 @@
 //=============================================================================
-// Resi - Persistent Encounter Rate
-// resiPersistentEncounters.js
+// Resi - Random Transmutation
+// resiRandomTransmutation.js
 // Version: 1.00
 //=============================================================================
 
