@@ -248,10 +248,10 @@ Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare
     var poolWeight = 0;
     for (i = 0; i < chanceTable.length; ++i) {
         poolWeight += Number(chanceTable[i]);
-        //if (poolRng <= poolWeight) {
-        //    poolChoice = rarities[i].toLowerCase();
-        //    break;
-        //}
+        if (poolRng <= poolWeight) {
+            poolChoice = rarities[i].toLowerCase();
+            break;
+        }
     }
     poolChoice = rarities[4].toLowerCase();
     // common pool
