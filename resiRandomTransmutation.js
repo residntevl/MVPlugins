@@ -305,7 +305,7 @@ Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare
 
     // Give player the item
     $gameVariables.setValue(outputVariable, outputItem.id)
-    $gameParty.gainItemPopup(outputItem, Number(Resi.Parameters['Reward Amount']));
+    $gameParty.gainItem(outputItem, Number(Resi.Parameters['Reward Amount']));
     // Play Sound plus message
     if (Resi.Params.playSounds) {
         sound.name = String(Resi.Parameters['Output Sound']);
