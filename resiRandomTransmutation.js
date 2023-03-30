@@ -157,7 +157,6 @@ Game_Interpreter.prototype.beginTransmute = function () {
     if (inputVariable === 0) {
         // item does not exist
         if (Resi.Params.playSounds) {
-            //console.log(String(Resi.Parameters['No Choice Sound']))
             sound.name = String(Resi.Parameters['No Choice Sound']);
             AudioManager.playSe(sound);
         }
@@ -197,7 +196,6 @@ Game_Interpreter.prototype.beginTransmute = function () {
                 }
             }
             var rarities = JSON.parse(Resi.Parameters['Rarities']);
-            console.log(rarities);
             // Get Item's Rarity. If it does not have a rarity, default to common.
             if (item.meta["Rarity"] !== undefined) {
                 itemRarity = item.meta["Rarity"].replace(regVar, '').split(',');
@@ -205,7 +203,6 @@ Game_Interpreter.prototype.beginTransmute = function () {
                 item.meta["Rarity"] = [rarities[0]];
                 itemRarity = item.meta["Rarity"];
             }
-            console.log(itemPool);
             j = 0;
             // Separate item pool into rarities
             for (i = 1; i < itemPool.length; ++i) {
@@ -230,7 +227,6 @@ Game_Interpreter.prototype.beginTransmute = function () {
                 }
             }
             // With all this in mind, let's roll for the item
-            console.log(common);
             this.rollForTrans(item, common, uncommon, rare, superRare, uberRare, itemRarity, inputVariable, outputVariable, rarities, sound);
         }
     }
@@ -245,23 +241,19 @@ Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare
     for (var i = 0; i < chanceTable.length; ++i) {
         poolTotals += Number(chanceTable[i]);
     }
-    console.log(poolTotals);
     //weighted roll
     var outputItem;
     var poolChoice;
     var poolRng = Math.floor(Math.random() * poolTotals + 1);
     var poolWeight = 0;
     for (i = 0; i < chanceTable.length; ++i) {
-        console.log(poolWeight);
         poolWeight += Number(chanceTable[i]);
-        console.log(poolRng)
-        console.log(poolWeight);
-        if (poolRng <= poolWeight) {
-            poolChoice = rarities[i].toLowerCase();
-            break;
-        }
+        //if (poolRng <= poolWeight) {
+        //    poolChoice = rarities[i].toLowerCase();
+        //    break;
+        //}
     }
-    console.log(poolChoice);
+    poolChoice = rarities[4].toLowerCase();
     // common pool
     if (poolChoice === rarities[0].toLowerCase()) {
         outputItem = this.getItemFromPool(common);
@@ -275,7 +267,7 @@ Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare
         }
     }
     // rare pool
-    if (poolChoice === rarities[1].toLowerCase()) {
+    if (poolChoice === rarities[2].toLowerCase()) {
         if (rare.length > 0 ) {
             outputItem = this.getItemFromPool(rare);
         } else if (uncommon.length > 0) {
@@ -285,7 +277,7 @@ Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare
         }
     }
     // super rare pool
-    if (poolChoice === rarities[1].toLowerCase()) {
+    if (poolChoice === rarities[3].toLowerCase()) {
         if (superRare.length > 0 ) {
             outputItem = this.getItemFromPool(superRare);
         } else if (rare.length > 0) {
@@ -297,7 +289,7 @@ Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare
         }
     }
     // uber rare pool
-    if (poolChoice === rarities[1].toLowerCase()) {
+    if (poolChoice === rarities[4].toLowerCase()) {
         if (uberRare.length > 0) {
             outputItem = this.getItemFromPool(uberRare);
         } else if (superRare.length > 0 ) {
@@ -312,9 +304,8 @@ Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare
     }
 
     // Give player the item
-    console.log(outputItem);
     $gameVariables.setValue(outputVariable, outputItem.id)
-    $gameParty.gainItem(outputItem, Number(Resi.Parameters['Reward Amount']));
+    $gameParty.gainItemPopup(outputItem, Number(Resi.Parameters['Reward Amount']));
     // Play Sound plus message
     if (Resi.Params.playSounds) {
         sound.name = String(Resi.Parameters['Output Sound']);
