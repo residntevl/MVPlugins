@@ -253,7 +253,6 @@ Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare
             break;
         }
     }
-    poolChoice = rarities[4].toLowerCase();
     // common pool
     if (poolChoice === rarities[0].toLowerCase()) {
         outputItem = this.getItemFromPool(common);
