@@ -1,7 +1,7 @@
 //=============================================================================
 // Resi - Random Transmutation
 // resiRandomTransmutation.js
-// Version: 1.00
+// Version: 1.01
 //=============================================================================
 
 //=============================================================================
@@ -18,6 +18,10 @@
 * The categories are defined by you as you see fit.
 * The rarities are a set of a rarities as defined in this plugin's settings. 
 * By default they are: 
+*
+* If you do no want an item to be something you can transmute, use the tag:
+*
+* <No Transmute>
 *
 * Common, Uncommon, Rare, Super Rare, and Uber Rare.
 * You may change them to suit your liking, but there may only be 5 maximum.
@@ -209,20 +213,22 @@ Game_Interpreter.prototype.beginTransmute = function () {
                 // Make sure the item has a rarity
                 if ($dataItems[itemPool[i]].meta["Rarity"] !== undefined) {
                     j = $dataItems[itemPool[i]].meta["Rarity"].replace(regVar, '').split(',');
-                    if (j[0].toLowerCase() === rarities[0].toLowerCase()) {
-                        common.push(itemPool[i]);
-                    }
-                    if (j[0].toLowerCase() === rarities[1].toLowerCase()) {
-                        uncommon.push(itemPool[i]);
-                    }
-                    if (j[0].toLowerCase() === rarities[2].toLowerCase()) {
-                        rare.push(itemPool[i]);
-                    }
-                    if (j[0].toLowerCase() === rarities[3].toLowerCase()) {
-                        superRare.push(itemPool[i]);
-                    }
-                    if (j[0].toLowerCase() === rarities[4].toLowerCase()) {
-                        uberRare.push(itemPool[i]);
+                    if ($dataItems[itemPool[i]].meta["No Transmute"] === undefined) {
+                        if (j[0].toLowerCase() === rarities[0].toLowerCase()) {
+                            common.push(itemPool[i]);
+                        }
+                        if (j[0].toLowerCase() === rarities[1].toLowerCase()) {
+                            uncommon.push(itemPool[i]);
+                        }
+                        if (j[0].toLowerCase() === rarities[2].toLowerCase()) {
+                            rare.push(itemPool[i]);
+                        }
+                        if (j[0].toLowerCase() === rarities[3].toLowerCase()) {
+                            superRare.push(itemPool[i]);
+                        }
+                        if (j[0].toLowerCase() === rarities[4].toLowerCase()) {
+                            uberRare.push(itemPool[i]);
+                        }
                     }
                 }
             }
@@ -322,10 +328,3 @@ Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare
 Game_Interpreter.prototype.getItemFromPool = function (pool) {
     return $dataItems[pool[Math.floor(Math.random() * pool.length)]];
 }
-
-Resi.RandTrans.Game_Interpreter_setupItemChoice =
-    Game_Interpreter.prototype.setupItemChoice;
-Game_Interpreter.prototype.setupItemChoice = function (params) {
-    Resi.RandTrans.Game_Interpreter_setupItemChoice.call(this, params)
-    $gameMessage.setItemChoice(Number(Resi.Parameters['Input Item Variable']), 1);
-};
