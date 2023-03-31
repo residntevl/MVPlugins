@@ -1,41 +1,71 @@
 //=============================================================================
 // Resi - Random Transmutation
 // resiRandomTransmutation.js
-// Version: 1.01
+// Version: 1.02
 //=============================================================================
 
 //=============================================================================
 /*:
 * @plugindesc This plugin allows you randomly transmute items from one to another.
 * @help
-* To begin using this plugin, you must declare each potential transmutable item
-* with a category and a rarity. This is done by placing the following into the 
-* item's notetags.
 *
-* <Menu Category: name> or <Category: name>
-* <Rarity: rarity>
+* HOW TO USE THIS PLUGIN
+* 
+* First, assign the appropriate notetags to your items in the database.
+* Second, create an event with the Select Item command. Make sure the 
+* Variable option matches the one declared in the Plugin Parameters. 
+* Third, use one of the corresponding Plugin Commands defined below to allow 
+* the transmutation to take place. 
+* Fourth, enjoy your new item! 
 *
-* The categories are defined by you as you see fit.
-* The rarities are a set of a rarities as defined in this plugin's settings. 
-* By default they are: 
+* ITEM NOTETAGS
+* 
+* These tags go into the Note box for items in the database. 
+* 
+* <Category: x, y, z> or <Menu Category: x, y, z>
+* Item category defined by you, separate multiple categories with a comma. 
 *
-* If you do no want an item to be something you can transmute, use the tag:
+* <Rarity: name>
+* Item rarity corresponding to the ones defined in the Plugin Parameters.
 *
 * <No Transmute>
+* Items that cannot be used as an input nor can be output.
 *
-* Common, Uncommon, Rare, Super Rare, and Uber Rare.
-* You may change them to suit your liking, but there may only be 5 maximum.
-*
-* To utilize the transmutation plugin, you must create an event with both a 
-* Select Item Command and a Plugin Command.
-* The Select Item Command must use the same Variable declared as your input 
-* variable in the plugin's settings.
-* The Plugin Command to start the transmutation process is:
+* Note! If do not give an item a rarity, it cannot be an output item.
+* If used as an input item, its rarity will be declared as the lowest.
+* 
+* PLUGIN COMMANDS 
 *
 * Transmute
+* Basic random transmutation, creates item pools that match the input item 
+* category and separates the pools by rarity.
 *
-* That should be all that is required to start utilizing this plugin. If you
-* have any questions, please reach out to me, thank you.
+* Transmute ForcePool rarity
+* Basic random transmutation, but after pools are created, a specific pool 
+* will be chosen from by declared rarity. If the pool has no eligible output 
+* items the next highest rarity will be selected. If no pool is eligible the 
+* input item will not be used. 
+*
+* Transmute ForceItem ID
+* Forces the output to be the item ID declared. This ignores all notetags.
+* 
+* Transmute ForceItemPool ID ID ID etc
+* Forces the output to be a pool of the item IDs declared. 
+* This ignores all notetags. 
+*
+* UPDATES:
+*
+* 1.01
+*
+* - Added <No Transmute> tag which prevents an item from being an output
+*
+* 1.02
+*
+* - <No Transmute> tag also now prevents an item from being an input
+* - Added plugin command to force a rarity pool
+* - Added plugin command to force a specific item
+* - Added plugin command to force a specific set of items
+* - Updated documentation
 * 
 * Terms of use: 
 * - Free to use in commercial/noncommercial games, just credit me.
@@ -117,6 +147,7 @@
 * @default Buzzer1
 */
 //=============================================================================
+
 var Resi = Resi || {};
 Resi.Params = Resi.Params || {};
 Resi.Parameters = PluginManager.parameters('resiRandomTransmutation');
@@ -132,12 +163,76 @@ Resi.RandTrans.Game_Interpreter_pluginCommand =
 Game_Interpreter.prototype.pluginCommand = function (command, args) {
     Resi.RandTrans.Game_Interpreter_pluginCommand.call(this, command, args)
     if (command.toLowerCase() === 'transmute') {
-        this.beginTransmute();
+        let forcePool = false;
+        let forceItem = false;
+        let forceItemPool = false;
+        let rarities = JSON.parse(Resi.Parameters['Rarities']);
+        let infoText = `Map - ${this._mapId}. ${$dataMapInfos[this._mapId].name}\nEvent ID - ${this._eventId}`
+        if (args.length > 0) {
+            if (args[0].toLowerCase() === "forcepool") {
+                // rarities = rarities.forEach(el => rarities[el].toLowerCase);
+                for (let i = 0; i < rarities.length; ++i) {
+                    rarities[i] = rarities[i].toLowerCase();
+                }
+                forcePool = args[1].toLowerCase();
+                if (!rarities.includes(forcePool)) {
+                    this.transmutationMessage(true, false, false, `ERROR! ERROR!\nThe rarity defined by the developer does not exist.\n${infoText}`);
+                    return false;
+                } else {
+                    this.beginTransmute(forcePool, forceItem, forceItemPool)
+                }
+            } else if (args[0].toLowerCase() === "forceitem") {
+                // We're only going to look at the first item here.
+                // Make sure we can determine the output item can exist.
+                if ($dataItems[Number(args[1])] === undefined) {
+                    this.transmutationMessage(true, false, false, `ERROR! ERROR!\nThe Output Item defined by the developer does not exist!\n${infoText}`);
+                } else {
+                    forceItem = $dataItems[Number(args[1])];
+                    this.beginTransmute(forcePool, forceItem, forceItemPool)
+                }
+            } else if (args[0].toLowerCase() === 'forceitempool') {
+                // Remove first argument because it's not a number
+                args.splice(0, 1);
+                forceItemPool = args;
+                // Make sure the dev inserted IDs
+                if (forceItemPool.length > 0) {
+                    // forceItemPool = forceItemPool.forEach(el => Number(forceItemPool[el]));
+                    // remove any numbers that do not exist as items to prevent bugs
+                    // Or, if the item is not a number
+                    for (let i = 0; i < forceItemPool.length; ++i) {
+                        forceItemPool[i] = Number(forceItemPool[i]);
+                        if ($dataItems[forceItemPool[i]] === undefined || forceItemPool[i] === NaN) {
+                            console.log(`Removed forceItemPool ID ${forceItemPool[i]} from the pool - ITEM DOES NOT EXIST.`);
+                            forceItemPool.splice(i, 1);
+                        }
+                    }
+                    if (forceItemPool.length === 0) {
+                        this.transmutationMessage(true, false, false, `ERROR! ERROR!\nThe Forced Item Pool defined does not have any items in it!\n${infoText}`);
+                    } else {
+                        this.beginTransmute(forcePool, forceItem, forceItemPool);
+                    }
+                } else {
+                    this.transmutationMessage(true, false, false, `ERROR! ERROR!\nThe Forced Item Pool defined does not have any items in it!\n${infoText}`);
+                }
+            }
+        } else {
+            // Add if statements to check for args such as forcePool, customPool, and customOutput
+            this.beginTransmute(forcePool, forceItem, forceItemPool);
+        }
     }
 }
 
-Game_Interpreter.prototype.beginTransmute = function () {
-    var sound = {
+Game_Interpreter.prototype.transmutationMessage = function (showMsg, playSound, sound, msg) {
+    if (showMsg) {
+        $gameMessage.add(msg);
+    }
+    if (playSound) {
+        AudioManager.playSe(sound);
+    }
+}
+
+Game_Interpreter.prototype.beginTransmute = function (forcePool, forceItem, forceItemPool) {
+    let sound = {
         name: "",
         volume: 90,
         pitch: 100,
@@ -146,6 +241,7 @@ Game_Interpreter.prototype.beginTransmute = function () {
     let regVar = /\s+/g;
     let inputVariable = $gameVariables.value(Number(Resi.Parameters['Input Item Variable']))
     let outputVariable = $gameVariables.value(Number(Resi.Parameters['Output Item Variable']))
+    let rarities = JSON.parse(Resi.Parameters['Rarities']);
     let item = $dataItems[inputVariable];
     let outputItem;
     let itemPool = [];
@@ -159,33 +255,28 @@ Game_Interpreter.prototype.beginTransmute = function () {
     let itemCategory = [];
     let itemRarity;
     if (inputVariable === 0) {
-        // item does not exist
-        if (Resi.Params.playSounds) {
-            sound.name = String(Resi.Parameters['No Choice Sound']);
-            AudioManager.playSe(sound);
-        }
-        if (Resi.Params.showMessages) {
-            $gameMessage.add(String(Resi.Parameters['No Item Message']));
-        }
+        // Item does not exist
+        sound.name = String(Resi.Parameters['No Choice Sound']);
+        this.transmutationMessage(Resi.Params.showMessages, Resi.Params.playSounds, sound, String(Resi.Parameters['No Item Message']));
         return;
+    } else if (item.meta["No Transmute"] !== undefined) {
+        sound.name = String(Resi.Parameters['No Choice Sound'])
+        this.transmutationMessage(Resi.Params.showMessages, Resi.Params.playSounds, sound, String(Resi.Parameters['Cannot Transmute Message']));
+    } else if (forceItem || forceItemPool) {
+        this.rollForTrans(item, common, uncommon, rare, superRare, uberRare, outputVariable, rarities, sound, forcePool, forceItem, forceItemPool);
     } else {
         if (item.meta["Category"] === undefined && item.meta["Menu Category"] === undefined) {
-            if (Resi.Params.playSounds) {
-                sound.name = String(Resi.Parameters['No Choice Sound']);
-                AudioManager.playSe(sound);
-            }
-            if (Resi.Params.showMessages) {
-                $gameMessage.add(String(Resi.Parameters['Cannot Transmute Message']));
-            }
+            sound.name = String(Resi.Parameters['No Choice Sound'])
+            this.transmutationMessage(Resi.Params.showMessages, Resi.Params.playSounds, sound, String(Resi.Parameters['Cannot Transmute Message']));
             return;
         } else {
             // Category
             if (item.meta["Menu Category"] === undefined) {
                 cat = "Category";
-            // Menu Category
+                // Menu Category
             } else if (item.meta["Category"] === undefined) {
                 cat = "Menu Category"
-            // Category is default
+                // Category is default
             } else {
                 cat = "Menu Category";
             }
@@ -199,8 +290,8 @@ Game_Interpreter.prototype.beginTransmute = function () {
                     }
                 }
             }
-            var rarities = JSON.parse(Resi.Parameters['Rarities']);
             // Get Item's Rarity. If it does not have a rarity, default to common.
+            // - Make it so that rarity input matters toward output pool rarity weight
             if (item.meta["Rarity"] !== undefined) {
                 itemRarity = item.meta["Rarity"].replace(regVar, '').split(',');
             } else {
@@ -233,96 +324,115 @@ Game_Interpreter.prototype.beginTransmute = function () {
                 }
             }
             // With all this in mind, let's roll for the item
-            this.rollForTrans(item, common, uncommon, rare, superRare, uberRare, itemRarity, inputVariable, outputVariable, rarities, sound);
+            // ForcePool Code goes here
+            this.rollForTrans(item, common, uncommon, rare, superRare, uberRare, outputVariable, rarities, sound, forcePool, forceItem);
         }
     }
 
 }
 
-Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare, superRare, uberRare, itemRarity, inputVariable, outputVariable, rarities, sound) {
+Game_Interpreter.prototype.rollForTrans = function (item, common, uncommon, rare, superRare, uberRare, outputVariable, rarities, sound, forcePool, forceItem, forceItemPool) {
     // Take item from player
     $gameParty.loseItem(item, 1);
-    var poolTotals = 0;
-    var chanceTable = JSON.parse(Resi.Parameters['Rarities Chance'])
-    for (var i = 0; i < chanceTable.length; ++i) {
-        poolTotals += Number(chanceTable[i]);
-    }
-    //weighted roll
-    var outputItem;
-    var poolChoice;
-    var poolRng = Math.floor(Math.random() * poolTotals + 1);
-    var poolWeight = 0;
-    for (i = 0; i < chanceTable.length; ++i) {
-        poolWeight += Number(chanceTable[i]);
-        if (poolRng <= poolWeight) {
-            poolChoice = rarities[i].toLowerCase();
-            break;
+    let outputItem;
+    let poolChoice;
+    if (forceItem) {
+        outputItem = forceItem;
+        this.transmutationGiveItem(outputVariable, item, outputItem, sound);
+    } else if (forceItemPool) {
+        outputItem = this.getItemFromPool(forceItemPool);
+        this.transmutationGiveItem(outputVariable, item, outputItem, sound);
+    } else {
+        let poolTotals = 0;
+        let chanceTable = JSON.parse(Resi.Parameters['Rarities Chance'])
+        for (let i = 0; i < chanceTable.length; ++i) {
+            poolTotals += Number(chanceTable[i]);
         }
-    }
-    // common pool
-    if (poolChoice === rarities[0].toLowerCase()) {
-        outputItem = this.getItemFromPool(common);
-    }
-    // uncommon pool
-    if (poolChoice === rarities[1].toLowerCase()) {
-        if (uncommon.length > 0 ) {
-            outputItem = this.getItemFromPool(uncommon);
+        //weighted roll
+        let poolRng = Math.floor(Math.random() * poolTotals + 1);
+        let poolWeight = 0;
+        if (forcePool) {
+            poolChoice = forcePool;
         } else {
+            for (i = 0; i < chanceTable.length; ++i) {
+                poolWeight += Number(chanceTable[i]);
+                if (poolRng <= poolWeight) {
+                    poolChoice = rarities[i].toLowerCase();
+                    break;
+                }
+            }
+        }
+        // common pool
+        // This code probably needs a bit of a cleanup
+        if (poolChoice === rarities[0].toLowerCase()) {
+            // if no items in the common pool exist, just return the player's item
+            if (common.length === 0) {
+                common.push(item.id)
+            }
             outputItem = this.getItemFromPool(common);
         }
-    }
-    // rare pool
-    if (poolChoice === rarities[2].toLowerCase()) {
-        if (rare.length > 0 ) {
-            outputItem = this.getItemFromPool(rare);
-        } else if (uncommon.length > 0) {
-            outputItem = this.getItemFromPool(uncommon);
-        } else {
-            outputItem = this.getItemFromPool(common);
+        // uncommon pool
+        if (poolChoice === rarities[1].toLowerCase()) {
+            if (uncommon.length > 0) {
+                outputItem = this.getItemFromPool(uncommon);
+            } else {
+                outputItem = this.getItemFromPool(common);
+            }
         }
-    }
-    // super rare pool
-    if (poolChoice === rarities[3].toLowerCase()) {
-        if (superRare.length > 0 ) {
-            outputItem = this.getItemFromPool(superRare);
-        } else if (rare.length > 0) {
-            outputItem = this.getItemFromPool(rare);
-        } else if (uncommon.length > 0) {
-            outputItem = this.getItemFromPool(uncommon);
-        } else {
-            outputItem = this.getItemFromPool(common);
+        // rare pool
+        if (poolChoice === rarities[2].toLowerCase()) {
+            if (rare.length > 0) {
+                outputItem = this.getItemFromPool(rare);
+            } else if (uncommon.length > 0) {
+                outputItem = this.getItemFromPool(uncommon);
+            } else {
+                outputItem = this.getItemFromPool(common);
+            }
         }
-    }
-    // uber rare pool
-    if (poolChoice === rarities[4].toLowerCase()) {
-        if (uberRare.length > 0) {
-            outputItem = this.getItemFromPool(uberRare);
-        } else if (superRare.length > 0 ) {
-            outputItem = this.getItemFromPool(superRare);
-        } else if (rare.length > 0) {
-            outputItem = this.getItemFromPool(rare);
-        } else if (uncommon.length > 0) {
-            outputItem = this.getItemFromPool(uncommon);
-        } else {
-            outputItem = this.getItemFromPool(common);
+        // super rare pool
+        if (poolChoice === rarities[3].toLowerCase()) {
+            if (superRare.length > 0) {
+                outputItem = this.getItemFromPool(superRare);
+            } else if (rare.length > 0) {
+                outputItem = this.getItemFromPool(rare);
+            } else if (uncommon.length > 0) {
+                outputItem = this.getItemFromPool(uncommon);
+            } else {
+                outputItem = this.getItemFromPool(common);
+            }
         }
+        // uber rare pool
+        if (poolChoice === rarities[4].toLowerCase()) {
+            if (uberRare.length > 0) {
+                outputItem = this.getItemFromPool(uberRare);
+            } else if (superRare.length > 0) {
+                outputItem = this.getItemFromPool(superRare);
+            } else if (rare.length > 0) {
+                outputItem = this.getItemFromPool(rare);
+            } else if (uncommon.length > 0) {
+                outputItem = this.getItemFromPool(uncommon);
+            } else {
+                outputItem = this.getItemFromPool(common);
+            }
+        }
+
+        // Give player the item
+        this.transmutationGiveItem(outputVariable, item, outputItem, sound);
+        return false;
     }
 
-    // Give player the item
+}
+
+Game_Interpreter.prototype.transmutationGiveItem = function (outputVariable, item, outputItem, sound) {
     $gameVariables.setValue(outputVariable, outputItem.id)
     $gameParty.gainItem(outputItem, Number(Resi.Parameters['Output Amount']));
     // Play Sound plus message
-    if (Resi.Params.playSounds) {
-        sound.name = String(Resi.Parameters['Output Sound']);
-        AudioManager.playSe(sound);
-    }
-    if (Resi.Params.showMessages) {
-        let text = String(Resi.Parameters['Transmutation Message']);
-        let textOut = text.replace(/INPUT/g, item.name);
-        textOut = textOut.replace(/OUTPUT/g, outputItem.name);
-        $gameMessage.add(textOut);
-    }
-    return false;
+    sound.name = String(Resi.Parameters['Output Sound']);
+    let text = String(Resi.Parameters['Transmutation Message']);
+    let textOut = text.replace(/INPUT/g, item.name);
+    textOut = textOut.replace(/OUTPUT/g, outputItem.name);
+    this.transmutationMessage(Resi.Params.showMessages, Resi.Params.playSounds, sound, textOut);
+
 }
 
 Game_Interpreter.prototype.getItemFromPool = function (pool) {
