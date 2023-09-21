@@ -5,10 +5,11 @@
 //=============================================================================
 //=============================================================================
 /*:
-* @plugindesc This plugin allows for modifying how many steps a player takes until an encounter occurs.
+* @plugindesc This plugin will eat your action if the target you selected is dead.
 * @help
 * 
-* When the target selected by an actor is dead, their action will not go through, effectively wasting their turn.
+* When the target selected by an actor is dead, their action will not go through,
+* effectively wasting their turn.
 *
 * Terms of use: 
 * - Free to use in commercial/noncommercial games, just credit me.
